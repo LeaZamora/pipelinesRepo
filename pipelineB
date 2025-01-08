@@ -1,0 +1,45 @@
+
+pipeline {
+    agent any
+    environment{
+        repoA_url = "https://github.com/LeaZamora/repoA.git"
+        doxgen_file = "Doxygen_B_cfg"
+        
+    }
+    stages{
+        stage('Clean Workspace'){
+            steps{
+             sh "rm -rf *"
+            }
+        }
+
+        stage('clone repoA'){
+            steps{
+                echo "Cloning repo '${repoA_url}'"
+                git branch: 'main', url: "${repoA_url}"
+            }
+        }
+
+        stage('generate Doxygen File'){
+            steps{
+             sh "doxygen -g '${doxygen_file}'"
+            }
+        }
+
+        stage('Modify doxygen File'){
+            steps{
+                echo "Modify generated doxygen file"
+                sh "sed -i 's/INPUT\b.*=/INPUT\t\t=  src/g' ${doxygen_file}"
+            
+                }
+            }
+
+        stage('Run Doxygen'){
+            steps{
+                echo "Execute Doxygen which generated html output"
+                sh "pwd"
+            }
+        }
+    }
+
+}
