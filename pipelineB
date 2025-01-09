@@ -3,41 +3,63 @@ pipeline {
     agent any
     environment{
         repoA_url = "https://github.com/LeaZamora/repoA.git"
-        doxgen_file = "Doxygen_B_cfg"
+        doxygen_file = "Doxygen_B_cfg"
+        archive_NAME = "doc.tar.gz"
         
     }
     stages{
         stage('Clean Workspace'){
             steps{
+            echo 'Clean up workspace'
              sh "rm -rf *"
+             sh "rm -rf '${doxygen_file}'"
             }
         }
 
         stage('clone repoA'){
             steps{
                 echo "Cloning repo '${repoA_url}'"
-                git branch: 'main', url: "${repoA_url}"
+                sh "git clone ${repoA_url}"
             }
         }
 
         stage('generate Doxygen File'){
             steps{
+             echo "Generate '${doxygen_file}' "
              sh "doxygen -g '${doxygen_file}'"
             }
         }
 
         stage('Modify doxygen File'){
             steps{
-                echo "Modify generated doxygen file"
-                sh "sed -i 's/INPUT\b.*=/INPUT\t\t=  src/g' ${doxygen_file}"
-            
+                echo "Modify generated  '${doxygen_file}' "
+                sh "chmod +w '${doxygen_file}' "
+                sh 'sed -i \'s/WARN_LOGFILE\\b.*=/WARN_LOGFILE\\t=\\t\\t\\"warning_logfile.txt\\"/g\' "${doxygen_file}"'
+                sh 'sed -i \'s/INPUT\\b.*=/INPUT\\t\\t=  src/g\' "${doxygen_file}"'
+                sh 'sed -i \'s/WARN_FORMAT\\b.*=.*"\\$file:\\$line: \\$text"/WARN_FORMAT = "\\$file||\\$line|| \\$text"/\' "${doxygen_file}"'
+                sh 'sed -i \'s/GENERATE_LATEX\\b.*=.*YES/GENERATE_LATEX\\t\\t=\\t\\t NO/g\' "${doxygen_file}"'
+                sh 'sed -i \'s/RECURSIVE\\b.*=.*NO/RECURSIVE\\t\\t=\\t\\t YES/g\' "${doxygen_file}"'
                 }
             }
 
         stage('Run Doxygen'){
             steps{
                 echo "Execute Doxygen which generated html output"
-                sh "pwd"
+                sh '''
+                cp "${doxygen_file}" "${WORKSPACE}"/repoA/.
+                cd "${WORKSPACE}"/repoA
+                pwd
+                doxygen "${doxygen_file}"
+                '''
+                
+                
+            }
+        }
+        
+        stage('Archive artifacts'){
+            steps{
+                echo "Archiving..."
+                archiveArtifacts artifacts: "${archive_Name}", followSymlinks: false
             }
         }
     }
