@@ -4,16 +4,17 @@ pipeline {
     environment{
         repoA_url = "https://github.com/LeaZamora/repoA.git"
         doxygen_file = "Doxygen_B_cfg"
-        archive_NAME = "doc.tar.gz"
-        python_repo = ""  
-        doxygen_log_parser_csv = "output_log_parse.csv"      
+        archive_Name = 'doc.tar.gz'
+        repoC_url = "https://github.com/LeaZamora/repoC.git"
+        parser_out_file = "doxygen_parser_result.csv"
+        
     }
     stages{
         stage('Clean Workspace'){
             steps{
             echo 'Clean up workspace'
-             sh "rm -rf *"
-             sh "rm -rf '${doxygen_file}'"
+            sh "rm -rf *"
+            sh "rm -rf '${doxygen_file}'"
             }
         }
 
@@ -33,13 +34,7 @@ pipeline {
 
         stage('Modify doxygen File'){
             steps{
-                echo "Modify generated  '${doxygen_file}' "
-                sh "chmod +w '${doxygen_file}' "
-                sh 'sed -i \'s/WARN_LOGFILE\\b.*=/WARN_LOGFILE\\t=\\t\\t\\"warning_logfile.txt\\"/g\' "${doxygen_file}"'
-                sh 'sed -i \'s/INPUT\\b.*=/INPUT\\t\\t=  src/g\' "${doxygen_file}"'
-                sh 'sed -i \'s/WARN_FORMAT\\b.*=.*"\\$file:\\$line: \\$text"/WARN_FORMAT = "\\$file||\\$line|| \\$text"/\' "${doxygen_file}"'
-                sh 'sed -i \'s/GENERATE_LATEX\\b.*=.*YES/GENERATE_LATEX\\t\\t=\\t\\t NO/g\' "${doxygen_file}"'
-                sh 'sed -i \'s/RECURSIVE\\b.*=.*NO/RECURSIVE\\t\\t=\\t\\t YES/g\' "${doxygen_file}"'
+                    echo "modifying doxgennnn"
                 }
             }
 
@@ -53,12 +48,26 @@ pipeline {
                 doxygen "${doxygen_file}"
                 '''
                 
+                sh'''
+                cd "${WORKSPACE}"/repoA
+                tar -zcvf "${WORKSPACE}"/repoAdoc.tar.gz html/ "${WORKSPACE}"/repoA/warning_logfile.txt
+                mv doc.tar.gz "${WORKSPACE}"/.
                 
+                '''
             }
         }
-        stage(" check if python is installed and Install Python if no python")
+        
+        stage("Clone RepoC")
         {
             steps{
+                echo "Cloning repoC"
+                sh 'git clone "${repoC_url}"'
+            }
+        }
+        
+        stage("Python installation"){
+            steps{
+                echo "Check if python installed and install if no python found"
                 sh '''
                  if ! command -v python3 &> /dev/null; then 
                     echo "python is not installed"
@@ -70,43 +79,32 @@ pipeline {
                 fi
         
                 '''
-        
-            }    
-        }
-
-        stage("create virtualenv and execute python")
-        {
-            steps{
-                sh '''
-                python3  -m venv testparserenv
-                source testparserenv/bin/activate
-                echo "install python package"
-                echo "execute python"
-
-                '''
+                }
             }
-        }
-
-        stage("Zip files for archiving")
-        {
-            steps{
-                                
-                //sh'''
-                //cp 
-                //cd "${WORKSPACE}"/repoA
-                //tar -zcvf doc.tar.gz ${WORKSPACE}/repoA/html/ ${WORKSPACE}/repoA/warning_logfile.txt "${doxygen_log_parser_csv}"
-                //mv doc.tar.gz "${WORKSPACE}"/.
+            stage("Execute python Script"){
+                steps{
+                    echo "Execute python scrips..."
+                    sh '''
+                    python3 -m venv testEnv
+                    . testEnv/bin/activate
+                    python3 ${WORKSPACE}/repoC/doxygenlogparser/doxygenlogparser/log_parser.py --warning_log_file "${WORKSPACE}"/repoA/warning_logfile.txt --output "${parser_out_file}"
+                    
+                    '''
+                    
+                }
                 
-                //'''
             }
-        }
         
         stage('Archive artifacts'){
             steps{
                 echo "Archiving..."
+                sh '''
+                tar -zcvf "${WORKSPACE}"/doc.tar.gz "${WORKSPACE}"/repoA/html/ "${WORKSPACE}"/repoA/warning_logfile.txt "${WORKSPACE}"/"${parser_out_file}"
+            
+                '''
                 archiveArtifacts artifacts: "${archive_Name}", followSymlinks: false
             }
         }
     }
 
-}
+  }
