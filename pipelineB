@@ -4,7 +4,8 @@ pipeline {
     environment{
         repoA_url = "https://github.com/LeaZamora/repoA.git"
         doxygen_file = "Doxygen_B_cfg"
-        archive_NAME = "doc.tar.gz"
+        doxygen_results_dir = "doxygen_results"
+        archive_Name = 'doc.tar.gz'
         
     }
     stages{
@@ -36,15 +37,17 @@ pipeline {
                 sh "chmod +w '${doxygen_file}' "
                 sh 'sed -i \'s/WARN_LOGFILE\\b.*=/WARN_LOGFILE\\t=\\t\\t\\"warning_logfile.txt\\"/g\' "${doxygen_file}"'
                 sh 'sed -i \'s/INPUT\\b.*=/INPUT\\t\\t=  src/g\' "${doxygen_file}"'
-                sh 'sed -i \'s/WARN_FORMAT\\b.*=.*"\\$file:\\$line: \\$text"/WARN_FORMAT = "\\$file||\\$line|| \\$text"/\' "${doxygen_file}"'
+                //sh 'sed -i \'s/WARN_FORMAT\\b.*=.*"\\$file:\\$line: \\$text"/WARN_FORMAT = "\\$file||\\$line|| \\$text"/\' "${doxygen_file}"'
                 sh 'sed -i \'s/GENERATE_LATEX\\b.*=.*YES/GENERATE_LATEX\\t\\t=\\t\\t NO/g\' "${doxygen_file}"'
                 sh 'sed -i \'s/RECURSIVE\\b.*=.*NO/RECURSIVE\\t\\t=\\t\\t YES/g\' "${doxygen_file}"'
+                //sh 'sed -i 's/OUTPUT_DIRECTORY\b.*=/OUTPUT_DIRECTORY\t\t=\t\t doxygen_results/g' "${doxygen_file}"'
                 }
             }
 
         stage('Run Doxygen'){
             steps{
                 echo "Execute Doxygen which generated html output"
+                sh 'mkdir -p repoA/doxygen_results'
                 sh '''
                 cp "${doxygen_file}" "${WORKSPACE}"/repoA/.
                 cd "${WORKSPACE}"/repoA
@@ -52,7 +55,12 @@ pipeline {
                 doxygen "${doxygen_file}"
                 '''
                 
+                sh'''
+                cd "${WORKSPACE}"/repoA
+                tar -zcvf doc.tar.gz html/ warning_logfile.txt
+                mv doc.tar.gz "${WORKSPACE}"/.
                 
+                '''
             }
         }
         
